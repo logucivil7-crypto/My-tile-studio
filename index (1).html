@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#faf8f5"><title>My Tile Studio</title>
+</head><body>
+
+<style>
+:root{--bg:#faf8f5;--bg-neutral:#efebe4;--bg-field:#ffffff;--bg-accent:#E6F1FB;--text-primary:#1c1a17;--text-secondary:#5f5a50;--text-muted:#8a8478;--text-accent:#185FA5;--border:rgba(0,0,0,.12);--border-strong:rgba(0,0,0,.3);--border-accent:#185FA5;--radius:8px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1a17;--bg-neutral:#2a2823;--bg-field:#24221e;--bg-accent:#1c3550;--text-primary:#f1eee8;--text-secondary:#bdb7aa;--text-muted:#8d877a;--text-accent:#8fbbe8;--border:rgba(255,255,255,.14);--border-strong:rgba(255,255,255,.35);--border-accent:#8fbbe8;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1b1a17;--bg-neutral:#2a2823;--bg-field:#24221e;--bg-accent:#1c3550;--text-primary:#f1eee8;--text-secondary:#bdb7aa;--text-muted:#8d877a;--text-accent:#8fbbe8;--border:rgba(255,255,255,.14);--border-strong:rgba(255,255,255,.35);--border-accent:#8fbbe8;color-scheme:dark}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text-primary);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.5}
+.wrap{max-width:480px;margin:0 auto;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,input,select{font:inherit;color:var(--text-primary)}
+button{background:transparent;border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:10px 12px;cursor:pointer}
+button:active{transform:scale(.98)}
+input,select{background:var(--bg-field);border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:8px 10px;min-height:40px;box-sizing:border-box;max-width:100%}
+input[type=range]{padding:0;min-height:0;background:none;border:none;accent-color:var(--text-accent)}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--border-accent);outline-offset:1px}
+h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.brand{font-size:22px;font-weight:600;margin:0 0 12px;font-family:"Cormorant Garamond",Georgia,serif;letter-spacing:.2px}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Inter:wght@400;500&display=swap">
+<div class="wrap"><div style="display:flex;align-items:center;justify-content:space-between"><p class="brand" id="brand">My Tile Studio</p><button class="mini" id="adbtn">Showroom settings</button></div><div id="adm" style="display:none"></div><div id="main">
+<style>
+.chip{border:0.5px solid var(--border-strong);background:transparent;border-radius:var(--radius);padding:8px 10px;font-size:14px;cursor:pointer;color:var(--text-primary);text-align:left}
+.chip.on{border-color:var(--border-accent);background:var(--bg-accent);color:var(--text-accent)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.lbl{font-size:13px;color:var(--text-secondary);margin:12px 0 6px}
+.sw{border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:6px;cursor:pointer;background:transparent;text-align:left;display:flex;gap:8px;align-items:center}
+.sw.on{border:2px solid var(--border-accent);padding:5px}
+.sw canvas{width:40px;height:40px;border-radius:6px;flex:none}
+.sw span{font-size:13px;line-height:1.3;color:var(--text-primary)}
+.row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.row label{font-size:13px;color:var(--text-secondary);width:62px;flex:none}
+.row b{font-weight:500;font-size:14px;min-width:56px;text-align:right}
+.mini{padding:6px 10px;font-size:13px}
+</style>
+<h2 class="sr-only">Step by step 3D tile visualizer: choose a room, set its size, pick floor and wall tiles, set the pattern, try the floor on your own photo, and see quantity and cost. Drag the 3D room to rotate it.</h2>
+<div class="grid2" style="margin-bottom:8px"><button id="m3" class="chip on">3D model</button><button id="mp" class="chip">My room photo</button></div>
+<canvas id="cv" style="width:100%;height:300px;display:block;border-radius:12px;background:var(--bg-neutral);touch-action:none;cursor:grab"></canvas>
+<canvas id="ph" style="width:100%;height:240px;display:none;border-radius:12px;background:var(--bg-neutral);touch-action:manipulation"></canvas>
+<div id="ctl" style="display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap">
+<button class="mini" id="v3">3D</button><button class="mini" id="vt">Top</button><button class="mini" id="vf">Front</button>
+<span style="flex:1"></span>
+<button class="mini" id="zo" aria-label="Zoom out">&minus;</button><button class="mini" id="zi" aria-label="Zoom in">+</button>
+</div>
+<div id="hint3" style="font-size:12px;color:var(--text-muted);margin-top:4px">Drag the room to rotate. Pinch or use + and - to zoom.</div>
+<div id="phbox" style="display:none;margin-top:8px"><div class="grid2"><button id="pc" class="chip">Choose photo from gallery</button><button id="pr" class="chip">Mark corners again</button></div><div id="phh" style="font-size:14px;font-weight:500;margin:10px 0 4px"></div><div style="font-size:12px;color:var(--text-secondary);line-height:1.5">Quick preview, not AI. Tiles are laid flat on the four corners you mark, using the floor tile, size, layout and grout from the steps below, so change them there and watch your photo update. Furniture, shadows and reflections are not detected. Realistic AI editing needs the next phase.</div></div>
+<input type="file" id="fin" accept="image/*" hidden>
+<div id="bar" style="display:flex;gap:4px;margin:12px 0 8px"></div>
+<div id="ttl" style="font-size:18px;font-weight:500"></div>
+<div id="sub" style="font-size:13px;color:var(--text-secondary);margin-top:2px"></div>
+<div id="panel" style="min-height:120px"></div>
+<div style="display:flex;gap:8px;margin-top:14px">
+<button id="bk" style="flex:1">&larr; Back</button>
+<button id="nx" style="flex:2;border-color:var(--border-accent);color:var(--text-accent)">Next &rarr;</button>
+</div>
+</div>
+<script>
+var T=[
+{id:'marble',n:'Carrara marble',c:'#eeece8',a:'#9aa0a8',p:'marble',pr:145,w:600,h:1200,ppb:2},
+{id:'ivory',n:'Ivory glossy',c:'#f1ead9',a:'#d8cfba',p:'solid',pr:62,w:600,h:600,ppb:4},
+{id:'grey',n:'Slate grey matt',c:'#7a7e84',a:'#8b9096',p:'solid',pr:52,w:600,h:600,ppb:4},
+{id:'oak',n:'Oak wood plank',c:'#b98b57',a:'#6e4a26',p:'wood',pr:72,w:200,h:1200,ppb:8},
+{id:'black',n:'Black granite',c:'#222328',a:'#c9a96a',p:'speck',pr:120,w:600,h:600,ppb:4},
+{id:'terra',n:'Terracotta',c:'#b5603f',a:'#8e4528',p:'solid',pr:34,w:300,h:300,ppb:11},
+{id:'teal',n:'Teal gloss wall',c:'#2f7f86',a:'#5fb0b5',p:'solid',pr:55,w:300,h:600,ppb:8},
+{id:'sand',n:'Sand beige',c:'#d8c7a8',a:'#c4b08c',p:'solid',pr:64,w:600,h:1200,ppb:2}
+];
+var R={bathroom:{n:'Bathroom',L:2.4,W:1.8,H:2.7,f:'grey',w:'ivory',b:'seven'},kitchen:{n:'Kitchen',L:3.2,W:2.8,H:3,f:'sand',w:'teal',b:'splash'},hall:{n:'Hall',L:5.5,W:4.5,H:3,f:'marble',w:null,b:'full'},bedroom:{n:'Bedroom',L:4,W:3.6,H:3,f:'oak',w:null,b:'full'}};
+var S={step:0,room:'bathroom',unit:'ft',L:2.4,W:1.8,H:2.7,floor:'grey',wall:'ivory',band:'seven',target:'floor',size:{floor:[600,600],wall:[300,600]},layout:{floor:'grid',wall:'grid'},turn:{floor:false,wall:false},grout:3,gc:'#d8d3ca',waste:10,cu:'ft',cn:'',cm:'',mode:'3d'};
+var CFG={shop:'My Tile Studio',gst:18,lab:0};
+try{var sv=JSON.parse(localStorage.getItem('mts1')||'null');if(sv){if(sv.T&&sv.T.length)T=sv.T;if(sv.CFG)for(var k in sv.CFG)CFG[k]=sv.CFG[k]}}catch(e){}
+function save(){try{localStorage.setItem('mts1',JSON.stringify({T:T,CFG:CFG}))}catch(e){}}
+var V={yaw:0.65,pitch:0.55,zoom:1};
+var PH={img:null,pts:[]};
+var SQ=10.7639,LAST=5;
+function $(i){return document.getElementById(i)}
+function tl(id){for(var i=0;i<T.length;i++)if(T[i].id===id)return T[i];return null}
+var UM={ft:0.3048,in:0.0254,cm:0.01,mm:0.001,m:1};
+function toU(m){return m/UM[S.unit]}
+function fromU(v){return v*UM[S.unit]}
+function fmt(m){var v=m/UM[S.unit];return (Math.round(v*100)/100)+' '+S.unit}
+function hex(c){return [parseInt(c.substr(1,2),16),parseInt(c.substr(3,2),16),parseInt(c.substr(5,2),16)]}
+function mix(c,f){var r=hex(c);return 'rgb('+Math.round(Math.min(255,r[0]*f))+','+Math.round(Math.min(255,r[1]*f))+','+Math.round(Math.min(255,r[2]*f))+')'}
+function bandR(){var H=S.H;if(S.band==='full')return[0,H];if(S.band==='seven')return[0,Math.min(2.1,H)];return[Math.min(0.9,H),Math.min(1.5,H)]}
+function hsh(a,b){var x=Math.sin(a*127.1+b*311.7)*43758.5453;return x-Math.floor(x)}
+function sub(a,b){return[a[0]-b[0],a[1]-b[1],a[2]-b[2]]}
+function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]}
+function crs(a,b){return[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]}
+function nrm(a){var l=Math.sqrt(dot(a,a))||1;return[a[0]/l,a[1]/l,a[2]/l]}
+function cam(w,h){
+ var tg=[0,S.H*0.4,0],dist=1.6*Math.sqrt(S.L*S.L+S.W*S.W+S.H*S.H)/V.zoom,cp=Math.cos(V.pitch),sp=Math.sin(V.pitch);
+ var pos=[tg[0]+dist*Math.sin(V.yaw)*cp,tg[1]+dist*sp,tg[2]+dist*Math.cos(V.yaw)*cp];
+ var f=nrm(sub(tg,pos)),r=nrm(crs(f,[0,1,0])),u=crs(r,f);
+ return{pos:pos,f:f,r:r,u:u,F:w*1.05,cx:w/2,cy:h/2}
+}
+function proj(c,p){var d=sub(p,c.pos),z=dot(d,c.f);if(z<0.05)z=0.05;return[c.cx+c.F*dot(d,c.r)/z,c.cy-c.F*dot(d,c.u)/z]}
+function quad(g,p){g.beginPath();g.moveTo(p[0][0],p[0][1]);for(var i=1;i<p.length;i++)g.lineTo(p[i][0],p[i][1]);g.closePath()}
+function surf(g,P,Su,Sv,t,size,layout,turn,shade){
+ var tu=turn?size[1]/1000:size[0]/1000,tv=turn?size[0]/1000:size[1]/1000,gr=S.grout/1000;
+ var pu=tu+gr,pv=tv+gr;
+ if(pu<0.08||pv<0.08)return;
+ g.fillStyle=mix(S.gc,shade);quad(g,[P(0,0),P(Su,0),P(Su,Sv),P(0,Sv)]);g.fill();
+ var rows=Math.ceil(Sv/pv)+1;
+ for(var r=0;r<rows;r++){
+  var v0=r*pv,v1=Math.min(Sv,v0+tv);if(v0>=Sv)break;
+  var off=layout==='brick'&&r%2?pu/2:0;
+  for(var c=-1;c*pu-off<Su;c++){
+   var u0=c*pu-off,u1=u0+tu;if(u1<=0)continue;u0=Math.max(0,u0);u1=Math.min(Su,u1);if(u1-u0<0.005)continue;
+   var q=[P(u0,v0),P(u1,v0),P(u1,v1),P(u0,v1)];
+   var vr=0.94+hsh(r+1,c+7)*0.12;
+   g.fillStyle=mix(t.c,shade*vr);quad(g,q);g.fill();
+   if(t.p==='wood'){g.strokeStyle=t.a;g.globalAlpha=0.35*g.__a;g.lineWidth=1;for(var k=1;k<4;k++){var f=k/4;g.beginPath();g.moveTo(q[0][0]+(q[3][0]-q[0][0])*f,q[0][1]+(q[3][1]-q[0][1])*f);g.lineTo(q[1][0]+(q[2][0]-q[1][0])*f,q[1][1]+(q[2][1]-q[1][1])*f);g.stroke()}g.globalAlpha=g.__a}
+   else if(t.p==='marble'&&hsh(r+3,c+2)>0.25){g.strokeStyle=t.a;g.globalAlpha=0.5*g.__a;g.lineWidth=1;g.beginPath();var a=hsh(r,c);g.moveTo(q[0][0]+(q[1][0]-q[0][0])*a,q[0][1]+(q[1][1]-q[0][1])*a);g.lineTo(q[3][0]+(q[2][0]-q[3][0])*(1-a),q[3][1]+(q[2][1]-q[3][1])*(1-a));g.stroke();g.globalAlpha=g.__a}
+   else if(t.p==='speck'){g.fillStyle=t.a;g.globalAlpha=0.5*g.__a;for(var k2=0;k2<4;k2++){var fa=hsh(r*9+k2,c),fb=hsh(c*5+k2,r+1);g.fillRect(q[0][0]+(q[2][0]-q[0][0])*fa,q[0][1]+(q[2][1]-q[0][1])*fb,1.5,1.5)}g.globalAlpha=g.__a}
+  }
+ }
+}
+function setup(cv,h){var dpr=window.devicePixelRatio||1,w=cv.clientWidth||340;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);var g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);g.__a=1;g.globalAlpha=1;return{g:g,w:w}}
+function draw(){S.mode==='photo'?drawPhoto():draw3()}
+function draw3(){
+ var s=setup($('cv'),300),g=s.g,w=s.w,h=300,L=S.L,W=S.W,H=S.H,c=cam(w,h);
+ var b=bandR(),y0=b[0],bh=b[1]-b[0],paint='#e4dfd6',fT=tl(S.floor),wT=S.wall?tl(S.wall):null;
+ var fl=function(u,v){return proj(c,[-L/2+u,0,-W/2+v])};
+ g.fillStyle=mix('#cfc9bf',1);quad(g,[fl(0,0),fl(L,0),fl(L,W),fl(0,W)]);g.fill();
+ surf(g,fl,L,W,fT,S.size.floor,S.layout.floor,S.turn.floor,1.04);
+ var walls=[
+  {n:[0,0,1],m:[0,H/2,-W/2],span:L,fn:function(u,v){return[-L/2+u,v,-W/2]},sh:0.98},
+  {n:[0,0,-1],m:[0,H/2,W/2],span:L,fn:function(u,v){return[-L/2+u,v,W/2]},sh:0.98},
+  {n:[1,0,0],m:[-L/2,H/2,0],span:W,fn:function(u,v){return[-L/2,v,-W/2+u]},sh:0.88},
+  {n:[-1,0,0],m:[L/2,H/2,0],span:W,fn:function(u,v){return[L/2,v,-W/2+u]},sh:0.93}
+ ];
+ walls.forEach(function(wl){
+  if(dot(wl.n,sub(c.pos,wl.m))<=0)return;
+  var P=function(u,v){return proj(c,wl.fn(u,v))};
+  g.fillStyle=mix(paint,wl.sh);quad(g,[P(0,0),P(wl.span,0),P(wl.span,H),P(0,H)]);g.fill();
+  if(wT)surf(g,function(u,v){return P(u,v+y0)},wl.span,bh,wT,S.size.wall,S.layout.wall,S.turn.wall,wl.sh);
+  g.strokeStyle='rgba(0,0,0,0.25)';g.lineWidth=1;quad(g,[P(0,0),P(wl.span,0),P(wl.span,H),P(0,H)]);g.stroke();
+ });
+ g.strokeStyle='rgba(0,0,0,0.25)';quad(g,[fl(0,0),fl(L,0),fl(L,W),fl(0,W)]);g.stroke();
+ g.fillStyle=getComputedStyle(document.body).color;g.globalAlpha=0.7;g.font='12px sans-serif';g.fillText(fmt(L)+' x '+fmt(W)+' x '+fmt(H),10,h-10);g.globalAlpha=1;
+}
+function homog(p){
+ var x0=p[0][0],y0=p[0][1],x1=p[1][0],y1=p[1][1],x2=p[2][0],y2=p[2][1],x3=p[3][0],y3=p[3][1];
+ var dx1=x1-x2,dx2=x3-x2,dx3=x0-x1+x2-x3,dy1=y1-y2,dy2=y3-y2,dy3=y0-y1+y2-y3;
+ var den=dx1*dy2-dy1*dx2,gg=0,hh=0;
+ if(Math.abs(dx3)>1e-9||Math.abs(dy3)>1e-9){gg=(dx3*dy2-dy3*dx2)/den;hh=(dx1*dy3-dy1*dx3)/den}
+ var a=x1-x0+gg*x1,b=x3-x0+hh*x3,d=y1-y0+gg*y1,e=y3-y0+hh*y3;
+ return function(u,v){var q=gg*u+hh*v+1;return[(a*u+b*v+x0)/q,(d*u+e*v+y0)/q]}
+}
+function drawPhoto(){
+ var cv=$('ph'),w=cv.clientWidth||340,hh=240;
+ if(PH.img){hh=Math.min(460,Math.round(w*PH.img.height/PH.img.width))}
+ var s=setup(cv,hh),g=s.g;cv.style.height=hh+'px';
+ if(!PH.img){g.fillStyle=getComputedStyle(document.body).color;g.font='14px sans-serif';g.textAlign='center';g.fillText('No photo yet. Tap Choose photo below.',w/2,hh/2);g.textAlign='left';return}
+ g.drawImage(PH.img,0,0,w,hh);
+ var p=PH.pts;
+ if(p.length===4){
+  var H2=homog(p);
+  g.save();quad(g,p);g.clip();g.__a=0.86;g.globalAlpha=0.86;
+  surf(g,function(u,v){return H2(u/S.L,v/S.W)},S.L,S.W,tl(S.floor),S.size.floor,S.layout.floor,S.turn.floor,1);
+  g.restore();g.__a=1;g.globalAlpha=1;
+  g.strokeStyle='#ffffff';g.lineWidth=1.5;quad(g,p);g.stroke();
+ }else if(p.length>1){g.strokeStyle='#ffffff';g.lineWidth=2;g.beginPath();g.moveTo(p[0][0],p[0][1]);for(var i=1;i<p.length;i++)g.lineTo(p[i][0],p[i][1]);g.stroke()}
+ p.forEach(function(q,i){g.fillStyle='#185FA5';g.beginPath();g.arc(q[0],q[1],9,0,6.283);g.fill();g.strokeStyle='#fff';g.lineWidth=2;g.stroke();g.fillStyle='#fff';g.font='11px sans-serif';g.textAlign='center';g.fillText(String(i+1),q[0],q[1]+4);g.textAlign='left'});
+}
+function qty(t,area,size,turn){
+ var tu=(turn?size[1]:size[0])/1000,tv=(turn?size[0]:size[1])/1000,gr=S.grout/1000;
+ var n=Math.ceil(area*(1+S.waste/100)/((tu+gr)*(tv+gr)));
+ var nat=t.w*t.h/1e6,cur=size[0]*size[1]/1e6,ppb=Math.max(1,Math.round(t.ppb*nat/cur));
+ var bx=Math.ceil(n/ppb),face=cur*SQ;
+ return{n:n,bx:bx,ppb:ppb,cost:bx*ppb*face*t.pr,area:area*SQ}
+}
+var STEPS=[
+['Step 1 · Choose room','அறையைத் தேர்ந்தெடுங்கள்'],
+['Step 2 · Room size','அறையின் அளவை மாற்றுங்கள்'],
+['Step 3 · Floor tile','தரைக்கு டைல் தேர்ந்தெடுங்கள்'],
+['Step 4 · Wall tile','சுவருக்கு டைல் தேர்ந்தெடுங்கள்'],
+['Step 5 · Size and pattern','டைல் அளவு, டிசைன், கிரவுட்'],
+['Step 6 · Quantity and cost','எத்தனை டைல், எவ்வளவு செலவு']
+];
+function readout(tg){
+ var e=$('cnt');if(!e)return;
+ var z=S.size[tg],tu=(S.turn[tg]?z[1]:z[0])/1000,tv=(S.turn[tg]?z[0]:z[1])/1000,gr=S.grout/1000,b=bandR();
+ var span=tg==='floor'?S.L:S.L,hgt=tg==='floor'?S.W:b[1]-b[0];
+ var ac=span/(tu+gr),dn=hgt/(tv+gr),r1=function(x){return Math.round(x*10)/10};
+ var name=tg==='floor'?'Floor':'Back wall';
+ e.innerHTML='<b style="font-weight:500">'+name+'</b>: '+fmt(span)+' wide x '+fmt(hgt)+(tg==='floor'?' deep':' tiled height')+'<br>Tile: '+fmt(tu)+' x '+fmt(tv)+' (turn '+(S.turn[tg]?'on':'off')+')<br>Across: <b style="font-weight:500">'+r1(ac)+'</b> tiles &nbsp; Down: <b style="font-weight:500">'+r1(dn)+'</b> tiles'+(ac%1>0.05&&ac%1<0.95||dn%1>0.05&&dn%1<0.95?'<br><span style="color:var(--text-secondary)">A decimal means the last tile is cut to fit.</span>':'')
+}
+function swatch(t){
+ var d=document.createElement('canvas');d.width=80;d.height=80;var g=d.getContext('2d');g.fillStyle=t.c;g.fillRect(0,0,80,80);
+ g.strokeStyle=t.a;g.globalAlpha=0.6;g.lineWidth=1.5;
+ if(t.p==='wood'){for(var i=1;i<8;i++){g.beginPath();g.moveTo(0,i*10);g.lineTo(80,i*10+3);g.stroke()}}
+ else if(t.p==='marble'){g.beginPath();g.moveTo(10,0);g.bezierCurveTo(40,25,20,50,60,80);g.stroke();g.beginPath();g.moveTo(50,0);g.bezierCurveTo(60,20,70,30,80,45);g.stroke()}
+ else if(t.p==='speck'){g.fillStyle=t.a;for(var j=0;j<40;j++)g.fillRect((j*37)%80,(j*53)%80,2,2)}
+ g.globalAlpha=1;return d
+}
+function sw(t,sel,fn){
+ var b=document.createElement('button');b.className='sw'+(sel?' on':'');b.appendChild(swatch(t));
+ var s=document.createElement('span');s.innerHTML=t.n+'<br><span style="color:var(--text-secondary)">Rs '+t.pr+' / sq ft</span>';b.appendChild(s);b.onclick=fn;return b
+}
+function chip(label,on,fn){var b=document.createElement('button');b.className='chip'+(on?' on':'');b.textContent=label;b.onclick=fn;return b}
+function grid(){var d=document.createElement('div');d.className='grid2';return d}
+function lab(t){var d=document.createElement('div');d.className='lbl';d.textContent=t;return d}
+function slider(p,label,min,max,step,val,fmtf,fn){
+ var r=document.createElement('div');r.className='row';
+ r.innerHTML='<label>'+label+'</label><input type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'" style="flex:1"><b></b>';
+ var i=r.querySelector('input'),o=r.querySelector('b');o.textContent=fmtf(val);
+ i.oninput=function(){var v=parseFloat(i.value);o.textContent=fmtf(v);fn(v)};p.appendChild(r)
+}
+var HINTS=['Tap the far-left corner of the floor.','Tap the far-right corner.','Tap the near-right corner.','Tap the near-left corner.','Done. Your floor now shows the tile you picked.'];
+function hintTxt(){var e=$('phh');if(!e)return;e.textContent=!PH.img?'First choose a photo of the room.':HINTS[PH.pts.length]}
+function panel(){
+ var p=$('panel');p.innerHTML='';var st=S.step;
+ if(st===0){var g=grid();Object.keys(R).forEach(function(k){g.appendChild(chip(R[k].n,S.room===k,function(){var r=R[k];S.room=k;S.L=r.L;S.W=r.W;S.H=r.H;S.floor=r.f;S.wall=r.w;S.band=r.b;S.size.floor=[tl(r.f).w,tl(r.f).h];if(r.w)S.size.wall=[tl(r.w).w,tl(r.w).h];draw();panel()}))});p.appendChild(g);
+  var n=document.createElement('p');n.style.cssText='font-size:13px;color:var(--text-secondary);margin:10px 0 0';n.textContent='Each room starts with a typical size and tiles. You can change everything in the next steps.';p.appendChild(n)}
+ if(st===1){
+  var ul=document.createElement('div');ul.className='lbl';ul.style.marginTop='0';ul.textContent='Unit';p.appendChild(ul);
+  var us=document.createElement('select');us.style.width='100%';
+  [['ft','Feet'],['in','Inches'],['cm','Centimetres'],['mm','Millimetres'],['m','Metres']].forEach(function(o){var e=document.createElement('option');e.value=o[0];e.textContent=o[1];us.appendChild(e)});
+  us.value=S.unit;us.onchange=function(){S.unit=us.value;panel();draw()};p.appendChild(us);
+  var gd=grid();gd.style.marginTop='12px';p.appendChild(gd);
+  var imp=S.unit==='ft'||S.unit==='in',rd=function(x){return Math.round(x*100)/100},ids={L:'bL',W:'bW',H:'bH'};
+  function box(label,id,suffix){var d=document.createElement('div');d.innerHTML='<div class="lbl" style="margin-top:0">'+label+' ('+suffix+')</div><input type="text" inputmode="decimal" autocomplete="off" id="'+id+'" style="width:100%"><div id="'+id+'h" style="font-size:12px;color:var(--text-muted);margin-top:2px;min-height:16px"></div>';gd.appendChild(d);return d.querySelector('input')}
+  var iL=box('Length','bL',S.unit),iW=box('Width','bW',S.unit),iH=box('Height','bH',S.unit),iA=box('Floor area','bA',imp?'sq ft':'sq m');
+  var hint=function(m){return S.unit==='ft'?'= '+rd(m)+' m':(function(){var t=Math.round(m/0.0254),f=Math.floor(t/12);return '= '+f+' ft '+(t-f*12)+' in'})()};
+  var areaV=function(){return imp?S.L*S.W*SQ:S.L*S.W};
+  var put=function(el,v){if(document.activeElement!==el)el.value=String(rd(v))};
+  var refresh=function(){put(iL,toU(S.L));put(iW,toU(S.W));put(iH,toU(S.H));put(iA,areaV());$('bLh').textContent=hint(S.L);$('bWh').textContent=hint(S.W);$('bHh').textContent=hint(S.H);$('bAh').textContent=imp?'= '+rd(S.L*S.W)+' sq m':'= '+rd(S.L*S.W*SQ)+' sq ft';draw()};
+  var num=function(el){var v=parseFloat(el.value.replace(',','.'));return v>0?v:0};
+  var setDim=function(k,el){var v=num(el);if(!v)return;var m=fromU(v);if(m<0.3||m>60){$(ids[k]+'h').textContent='Allowed: 0.3 m to 60 m';return}S[k]=m;if(k==='H'&&S.band==='seven'&&S.H<2.1)S.band='full';refresh()};
+  iL.oninput=function(){setDim('L',iL)};iW.oninput=function(){setDim('W',iW)};iH.oninput=function(){setDim('H',iH)};
+  iA.oninput=function(){var v=num(iA);if(!v)return;var m2=imp?v/SQ:v,f=Math.sqrt(m2/(S.L*S.W)),nl=S.L*f,nw=S.W*f;if(nl<0.3||nw<0.3||nl>60||nw>60){$('bAh').textContent='Area is outside the allowed range';return}S.L=nl;S.W=nw;refresh()};
+  refresh()}
+ if(st===2){var g2=grid();T.forEach(function(t){g2.appendChild(sw(t,S.floor===t.id,function(){S.floor=t.id;S.size.floor=[t.w,t.h];draw();panel()}))});p.appendChild(g2)}
+ if(st===3){var k=grid();k.appendChild(chip('Keep painted',!S.wall,function(){S.wall=null;S.target='floor';draw();panel()}));p.appendChild(k);
+  var g3=grid();g3.style.marginTop='8px';T.forEach(function(t){g3.appendChild(sw(t,S.wall===t.id,function(){S.wall=t.id;S.size.wall=[t.w,t.h];draw();panel()}))});p.appendChild(g3);
+  if(S.wall){p.appendChild(lab('How high should the tile go?'));var hh=grid();[['full','Full height'],['seven','Up to 7 ft'],['splash','Backsplash only']].forEach(function(o){hh.appendChild(chip(o[1],S.band===o[0],function(){S.band=o[0];draw();panel()}))});p.appendChild(hh)}}
+ if(st===4){
+  if(S.wall){var tg=grid();tg.appendChild(chip('Floor',S.target==='floor',function(){S.target='floor';panel()}));tg.appendChild(chip('Walls',S.target==='wall',function(){S.target='wall';panel()}));p.appendChild(tg)}else S.target='floor';
+  var tg2=S.target;p.appendChild(lab('Tile size'));var sz=document.createElement('select');sz.style.width='100%';
+  var opts=[[609.6,609.6,'2 x 2 ft'],[609.6,1219.2,'2 x 4 ft'],[1219.2,1219.2,'4 x 4 ft'],[1219.2,2438.4,'4 x 8 ft'],[600,600,'600 x 600 mm'],[600,1200,'600 x 1200 mm'],[800,1600,'800 x 1600 mm'],[1200,2400,'1200 x 2400 mm'],[300,600,'300 x 600 mm'],[300,300,'300 x 300 mm'],[200,1200,'200 x 1200 mm plank']];
+  var cur=S.size[tg2],found=false;
+  opts.forEach(function(o){var e=document.createElement('option');e.value=o[0]+'x'+o[1];e.textContent=o[2];if(Math.abs(o[0]-cur[0])<0.5&&Math.abs(o[1]-cur[1])<0.5){e.selected=true;found=true}sz.appendChild(e)});
+  if(!found){var e2=document.createElement('option');e2.value=cur[0]+'x'+cur[1];e2.textContent=cur[0]+' x '+cur[1]+' mm (tile default)';e2.selected=true;sz.insertBefore(e2,sz.firstChild)}
+  sz.onchange=function(){var a=sz.value.split('x');S.size[tg2]=[parseFloat(a[0]),parseFloat(a[1])];sync();draw()};p.appendChild(sz);
+  p.appendChild(lab('Or type your own tile size'));
+  var cu=document.createElement('div');cu.className='row';cu.style.gap='6px';
+  cu.innerHTML='<input type="number" id="cw" min="1" step="any" style="width:28%" aria-label="Tile width"><span>x</span><input type="number" id="ch" min="1" step="any" style="width:28%" aria-label="Tile height"><select id="cu" style="flex:1" aria-label="Unit"><option value="ft">ft</option><option value="in">in</option><option value="cm">cm</option><option value="mm">mm</option></select>';
+  p.appendChild(cu);
+  var cnt=document.createElement('div');cnt.id='cnt';cnt.style.cssText='font-size:13px;margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--bg-neutral);line-height:1.6';p.appendChild(cnt);
+  var MM={ft:304.8,in:25.4,cm:10,mm:1},cwI=cu.querySelector('#cw'),chI=cu.querySelector('#ch'),cuS=cu.querySelector('#cu');cuS.value=S.cu;
+  var sync=function(){var z=S.size[tg2],f=MM[S.cu];cwI.value=Math.round(z[0]/f*100)/100;chI.value=Math.round(z[1]/f*100)/100;readout(tg2)};
+  var fromInputs=function(){var a=parseFloat(cwI.value),b=parseFloat(chI.value);if(!(a>0&&b>0))return;S.size[tg2]=[a*MM[S.cu],b*MM[S.cu]];readout(tg2);draw()};
+  cwI.oninput=fromInputs;chI.oninput=fromInputs;
+  cuS.onchange=function(){S.cu=cuS.value;sync()};
+  sync();
+  p.appendChild(lab('Layout'));var ly=grid();[['grid','Straight'],['brick','Brick offset']].forEach(function(o){ly.appendChild(chip(o[1],S.layout[tg2]===o[0],function(){S.layout[tg2]=o[0];draw();panel()}))});p.appendChild(ly);
+  var tn=grid();tn.style.marginTop='8px';tn.appendChild(chip('Turn tiles 90 degrees',S.turn[tg2],function(){S.turn[tg2]=!S.turn[tg2];draw();panel()}));p.appendChild(tn);
+  p.appendChild(lab('Grout colour'));var gc=document.createElement('div');gc.style.cssText='display:flex;gap:10px';
+  [['#f4f2ee','White'],['#d8d3ca','Light grey'],['#5a5650','Charcoal'],['#1d1d1d','Black']].forEach(function(o){var b=document.createElement('button');b.setAttribute('aria-label',o[1]);b.style.cssText='width:36px;height:36px;border-radius:50%;padding:0;background:'+o[0]+';border:'+(S.gc===o[0]?'2px solid var(--border-accent)':'0.5px solid var(--border-strong)');b.onclick=function(){S.gc=o[0];draw();panel()};gc.appendChild(b)});p.appendChild(gc);
+  slider(p,'Grout',0,10,0.5,S.grout,function(v){return v+' mm'},function(v){S.grout=v;readout(tg2);draw()})}
+ if(st===LAST){
+  slider(p,'Wastage',0,25,1,S.waste,function(v){return v+'%'},function(v){S.waste=v;panel2()});
+  var box=document.createElement('div');box.id='cost';p.appendChild(box);panel2();
+  var q=document.createElement('div');q.innerHTML='<div class="lbl" style="margin-top:18px">Customer details for the quotation</div><input id="cn" placeholder="Customer name" style="width:100%;margin-bottom:8px"><input id="cm" placeholder="Mobile number" inputmode="tel" style="width:100%"><div id="quo"></div>';p.appendChild(q);
+  $('cn').value=S.cn||'';$('cm').value=S.cm||'';$('cn').oninput=function(){S.cn=this.value;quote()};$('cm').oninput=function(){S.cm=this.value;quote()};quote()}
+}
+function calc(){
+ var rows=[],tot=0,f=qty(tl(S.floor),S.L*S.W,S.size.floor,S.turn.floor);rows.push(['Floor',tl(S.floor),f]);tot+=f.cost;
+ if(S.wall){var b=bandR(),wa=2*(S.L+S.W)*(b[1]-b[0]);var w=qty(tl(S.wall),wa,S.size.wall,S.turn.wall);rows.push(['Walls',tl(S.wall),w]);tot+=w.cost}
+ return{rows:rows,tot:tot}
+}
+function inr(n){return 'Rs '+Math.round(n).toLocaleString('en-IN')}
+function panel2(){
+ var box=$('cost');if(!box)return;
+ var c=calc(),h='';c.rows.forEach(function(r){h+='<div style="border:0.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:500">'+r[0]+'</span><span>'+inr(r[2].cost)+'</span></div><div style="font-size:13px;color:var(--text-secondary)">'+r[1].n+'</div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px;text-align:center;font-size:12px">'+
+ '<div style="background:var(--bg-neutral);border-radius:8px;padding:6px"><div style="font-size:15px;font-weight:500">'+Math.round(r[2].area*10)/10+'</div>sq ft</div><div style="background:var(--bg-neutral);border-radius:8px;padding:6px"><div style="font-size:15px;font-weight:500">'+r[2].n+'</div>tiles</div><div style="background:var(--bg-neutral);border-radius:8px;padding:6px"><div style="font-size:15px;font-weight:500">'+r[2].bx+'</div>boxes</div></div></div>'});
+ h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)"><span style="font-size:14px;color:var(--text-secondary)">Estimated tile cost</span><span style="font-size:24px;font-weight:500">'+inr(c.tot)+'</span></div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">Tiles only. GST and labour are added in the quotation below.</div>';
+ box.innerHTML=h;quote()
+}
+function quote(){
+ var e=$('quo');if(!e)return;
+ var c=calc(),sqf=0;c.rows.forEach(function(r){sqf+=r[2].area});var lab=sqf*(+CFG.lab||0),base=c.tot+lab,gst=base*(+CFG.gst||0)/100,fin=base+gst;
+ var t=(CFG.shop||'Tile showroom').toUpperCase()+' - QUOTATION\nCustomer: '+(S.cn||'-')+'\nMobile: '+(S.cm||'-')+'\nRoom: '+R[S.room].n+', '+fmt(S.L)+' x '+fmt(S.W)+' x '+fmt(S.H)+'\n';
+ c.rows.forEach(function(r){t+='\n'+r[0]+': '+r[1].n+' ('+Math.round(r[2].area*10)/10+' sq ft)\n  Rs '+r[1].pr+'/sq ft, '+r[2].n+' tiles, '+r[2].bx+' boxes = '+inr(r[2].cost)});
+ t+='\n\nTile total: '+inr(c.tot)+(lab?'\nLabour ('+CFG.lab+'/sq ft): '+inr(lab):'')+'\nGST '+(+CFG.gst||0)+'%: '+inr(gst)+'\nFINAL AMOUNT: '+inr(fin)+'\n\nEstimate only. Adhesive and transport extra.';
+ e.innerHTML='<div style="border:0.5px solid var(--border-strong);border-radius:12px;padding:12px;margin-top:14px"><div style="font-weight:500;margin-bottom:6px">Quotation</div><pre id="qt" style="white-space:pre-wrap;word-break:break-word;font:13px/1.55 inherit;margin:0;font-family:inherit;color:var(--text-primary)"></pre><div class="grid2" style="margin-top:12px"><button id="qc">Copy text</button><a id="qw" target="_blank" rel="noopener" style="display:block;text-align:center;border:0.5px solid var(--border-accent);border-radius:var(--radius);padding:10px 12px;color:var(--text-accent);text-decoration:none">Send on WhatsApp</a></div><div id="qm" style="font-size:12px;color:var(--text-secondary);margin-top:6px"></div></div>';
+ $('qt').textContent=t;var dg=(S.cm||'').replace(/\D/g,'').slice(-10);$('qw').href='https://wa.me/'+(dg.length===10?'91'+dg:'')+'?text='+encodeURIComponent(t);
+ $('qc').onclick=function(){var m=$('qm');var ok=function(){m.textContent='Copied.'};var fb=function(){var r=document.createRange();r.selectNodeContents($('qt'));var se=window.getSelection();se.removeAllRanges();se.addRange(r);m.textContent='Text selected. Press copy on your phone.'};try{navigator.clipboard.writeText(t).then(ok,fb)}catch(x){fb()}}
+}
+function render(){
+ var bar=$('bar');bar.innerHTML='';
+ STEPS.forEach(function(s,i){var d=document.createElement('button');d.setAttribute('aria-label',s[0]);d.style.cssText='flex:1;height:6px;padding:0;border:none;border-radius:3px;background:'+(i<=S.step?'var(--text-accent)':'var(--border-strong)');d.onclick=function(){S.step=i;render()};bar.appendChild(d)});
+ $('ttl').textContent=STEPS[S.step][0];$('sub').textContent=STEPS[S.step][1];
+ $('bk').style.visibility=S.step===0?'hidden':'visible';
+ var ph=S.mode==='photo';$('m3').className='chip'+(ph?'':' on');$('mp').className='chip'+(ph?' on':'');$('phbox').style.display=ph?'block':'none';hintTxt();
+ $('cv').style.display=ph?'none':'block';$('ph').style.display=ph?'block':'none';$('ctl').style.display=ph?'none':'flex';$('hint3').style.display=ph?'none':'block';
+ var nx=$('nx');
+ nx.innerHTML=S.step===LAST?'Start a new room':'Next &rarr;';
+ panel();draw()
+}
+$('bk').onclick=function(){if(S.step>0){S.step--;render()}};
+$('nx').onclick=function(){if(S.step<LAST){S.step++;render()}else{S.step=0;render()}};
+
+var admOpen=false;
+function ael(h){var d=document.createElement('div');d.innerHTML=h;return d.firstChild}
+function admin(){
+ var a=$('adm');a.innerHTML='';
+ a.appendChild(ael('<div style="font-size:18px;font-weight:500">Showroom settings</div>'));
+ a.appendChild(ael('<div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px">உங்கள் கடை பெயர், விலை, டைல் பட்டியல். இந்த போனிலேயே சேமிக்கப்படும்.</div>'));
+ var f=ael('<div class="grid2"><div><div class="lbl" style="margin-top:0">Showroom name</div><input id="cs" style="width:100%"></div><div><div class="lbl" style="margin-top:0">GST %</div><input id="cg" inputmode="decimal" style="width:100%"></div><div><div class="lbl">Labour Rs per sq ft</div><input id="cl" inputmode="decimal" style="width:100%"></div></div>');
+ a.appendChild(f);
+ $('cs').value=CFG.shop;$('cg').value=CFG.gst;$('cl').value=CFG.lab;
+ $('cs').oninput=function(){CFG.shop=this.value;save()};$('cg').oninput=function(){CFG.gst=parseFloat(this.value)||0;save()};$('cl').oninput=function(){CFG.lab=parseFloat(this.value)||0;save()};
+ a.appendChild(ael('<div class="lbl" style="margin-top:16px">Tiles ('+T.length+')</div>'));
+ T.forEach(function(t,i){
+  var c=ael('<div style="border:0.5px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px"><input class="a-n" placeholder="Tile name" style="width:100%;margin-bottom:6px"><div class="grid2"><div><div class="lbl" style="margin:0 0 2px">Price Rs/sq ft</div><input class="a-p" inputmode="decimal" style="width:100%"></div><div><div class="lbl" style="margin:0 0 2px">Pieces per box</div><input class="a-b" inputmode="numeric" style="width:100%"></div><div><div class="lbl" style="margin:0 0 2px">Width mm</div><input class="a-w" inputmode="numeric" style="width:100%"></div><div><div class="lbl" style="margin:0 0 2px">Height mm</div><input class="a-h" inputmode="numeric" style="width:100%"></div><div><div class="lbl" style="margin:0 0 2px">Colour</div><input class="a-c" type="color" style="width:100%;padding:2px"></div><div><div class="lbl" style="margin:0 0 2px">Look</div><select class="a-t" style="width:100%"><option value="solid">Plain</option><option value="marble">Marble</option><option value="wood">Wood</option><option value="speck">Granite</option></select></div></div><button class="mini a-d" style="margin-top:8px;color:var(--text-secondary)">Delete this tile</button></div>');
+  var q=function(x){return c.querySelector(x)};
+  q('.a-n').value=t.n;q('.a-p').value=t.pr;q('.a-b').value=t.ppb;q('.a-w').value=t.w;q('.a-h').value=t.h;q('.a-c').value=t.c;q('.a-t').value=t.p;
+  q('.a-n').oninput=function(){t.n=this.value||'Tile';save()};
+  q('.a-p').oninput=function(){t.pr=parseFloat(this.value)||0;save()};
+  q('.a-b').oninput=function(){t.ppb=Math.max(1,parseInt(this.value)||1);save()};
+  q('.a-w').oninput=function(){t.w=Math.max(50,parseInt(this.value)||600);save()};
+  q('.a-h').oninput=function(){t.h=Math.max(50,parseInt(this.value)||600);save()};
+  q('.a-c').oninput=function(){t.c=this.value;var x=parseInt(this.value.slice(1),16);t.a=t.p==='solid'?this.value:t.a;save()};
+  q('.a-t').onchange=function(){t.p=this.value;save()};
+  q('.a-d').onclick=function(){if(T.length<2)return;T.splice(i,1);if(!tl(S.floor))S.floor=T[0].id;if(S.wall&&!tl(S.wall))S.wall=T[0].id;save();admin()};
+  a.appendChild(c)});
+ var add=ael('<button style="width:100%;border-color:var(--border-accent);color:var(--text-accent)">+ Add new tile</button>');
+ add.onclick=function(){T.push({id:'t'+Date.now(),n:'New tile',c:'#d9d4c8',a:'#bdb6a6',p:'solid',pr:60,w:600,h:600,ppb:4});save();admin();window.scrollTo(0,document.body.scrollHeight)};
+ a.appendChild(add);
+ var done=ael('<button style="width:100%;margin-top:8px">Save and go back</button>');
+ done.onclick=function(){toggleAdm(false)};a.appendChild(done);
+}
+function toggleAdm(on){admOpen=on;$('adm').style.display=on?'block':'none';$('main').style.display=on?'none':'block';$('adbtn').textContent=on?'Close':'Showroom settings';$('brand').textContent=CFG.shop||'My Tile Studio';if(on)admin();else{render()}}
+$('adbtn').onclick=function(){toggleAdm(!admOpen)};
+function view(y,p){V.yaw=y;V.pitch=p;draw()}
+$('v3').onclick=function(){V.zoom=1;view(0.65,0.55)};
+$('vt').onclick=function(){V.zoom=1;view(0,1.5)};
+$('vf').onclick=function(){V.zoom=1;view(0,0.12)};
+function zoom(f){V.zoom=Math.max(0.6,Math.min(2.4,V.zoom*f));draw()}
+$('zi').onclick=function(){zoom(1.2)};$('zo').onclick=function(){zoom(1/1.2)};
+var cvs=$('cv'),ptr={};
+cvs.addEventListener('pointerdown',function(e){cvs.setPointerCapture(e.pointerId);ptr[e.pointerId]=[e.clientX,e.clientY];cvs.style.cursor='grabbing'});
+cvs.addEventListener('pointermove',function(e){
+ if(!ptr[e.pointerId])return;var ids=Object.keys(ptr),o=ptr[e.pointerId];
+ if(ids.length===1){V.yaw-=(e.clientX-o[0])*0.01;V.pitch=Math.max(0.05,Math.min(1.5,V.pitch+(e.clientY-o[1])*0.01));ptr[e.pointerId]=[e.clientX,e.clientY];draw()}
+ else if(ids.length===2){var a=ptr[ids[0]],b=ptr[ids[1]],d0=Math.hypot(a[0]-b[0],a[1]-b[1]);ptr[e.pointerId]=[e.clientX,e.clientY];a=ptr[ids[0]];b=ptr[ids[1]];var d1=Math.hypot(a[0]-b[0],a[1]-b[1]);if(d0>0)zoom(d1/d0)}
+});
+function up(e){delete ptr[e.pointerId];cvs.style.cursor='grab'}
+cvs.addEventListener('pointerup',up);cvs.addEventListener('pointercancel',up);
+cvs.addEventListener('wheel',function(e){e.preventDefault();zoom(e.deltaY<0?1.1:1/1.1)},{passive:false});
+$('ph').addEventListener('pointerdown',function(e){
+ if(!PH.img||PH.pts.length>=4)return;var r=$('ph').getBoundingClientRect();
+ PH.pts.push([(e.clientX-r.left)*($('ph').clientWidth/r.width),(e.clientY-r.top)*($('ph').clientHeight/r.height)]);hintTxt();draw()
+});
+$('fin').onchange=function(){
+ var f=this.files&&this.files[0];if(!f)return;
+ var rd=new FileReader();rd.onload=function(){var im=new Image();im.onload=function(){PH.img=im;PH.pts=[];hintTxt();draw()};im.src=rd.result};rd.readAsDataURL(f)
+};
+$('m3').onclick=function(){S.mode='3d';render()};$('mp').onclick=function(){S.mode='photo';render()};
+$('pc').onclick=function(){$('fin').click()};$('pr').onclick=function(){PH.pts=[];hintTxt();draw()};
+window.addEventListener('resize',draw);
+render();
+</script>
+
+</div>
+
+</body></html>
