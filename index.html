@@ -332,6 +332,41 @@ async function pjPull(){
    if(c.ok){CU=(await c.json()).map(function(r){var d=r.data||{};d._own=r.owner;return d});jset('mts_cust',CU)}}
   else{CP=rows.map(function(r){return r.data}).filter(function(d){return d&&d.id});jset('mts_cp',CP)}
   return true}catch(e){return false}}
+/* ---------- admin devices: list + remote logout ---------- */
+var DVL=[],DVM='';
+function devName(){var u=navigator.userAgent||'',os=/Android/i.test(u)?'Android':/iPhone|iPad|iPod/i.test(u)?'iPhone/iPad':/Windows/i.test(u)?'Windows':/Mac/i.test(u)?'Mac':/Linux/i.test(u)?'Linux':'Device',br=/Edg\//.test(u)?'Edge':/OPR\//.test(u)?'Opera':/SamsungBrowser/i.test(u)?'Samsung Browser':/Chrome\//.test(u)?'Chrome':/Firefox\//.test(u)?'Firefox':/Safari\//.test(u)?'Safari':'Browser';return os+' · '+br}
+async function devApi(q,method,body){var tok=await token(),m=method||'GET',h=m==='GET'?hd(tok):hd(tok,{Prefer:'resolution=merge-duplicates,return=minimal'}),r=await fetch(SB_URL+'/rest/v1/admin_devices'+q,{method:m,headers:h,body:body?JSON.stringify(body):undefined});if(!r.ok)throw new Error((await r.text()).slice(0,160));return m==='GET'?r.json():null}
+async function devReg(){try{await devApi('?on_conflict=id','POST',[{id:DEV,name:devName(),logged_in:true,revoked:false,last_seen:new Date().toISOString()}])}catch(e){DVM='Device list error: '+e.message}}
+async function devBeat(){if(!isAdmin())return;try{var q='?id=eq.'+encodeURIComponent(DEV),r=await devApi(q+'&select=revoked');
+ if(r.length&&r[0].revoked){logout();DVL=[];if(admOpen)admin();else if(ST.scr==='home')scrHome();alert('இந்த டிவைஸ் வேறொரு டிவைஸிலிருந்து லாக் அவுட் செய்யப்பட்டது. (Logged out from another device)');return}
+ if(r.length)await devApi(q,'PATCH',{last_seen:new Date().toISOString(),logged_in:true,name:devName()});else{await devReg();await devSeenReset()}await devWatch()}catch(e){}}
+async function devSeenReset(){try{var r=await devApi('?select=id&logged_in=eq.true&revoked=eq.false&id=neq.'+encodeURIComponent(DEV));jset('mts_dev_seen',r.map(function(d){return d.id}))}catch(e){}}
+async function devWatch(){var r=await devApi('?select=id,name,last_seen&logged_in=eq.true&revoked=eq.false&id=neq.'+encodeURIComponent(DEV)),seen=jget('mts_dev_seen',null),ids=r.map(function(d){return d.id});jset('mts_dev_seen',ids);if(seen===null)return;r.filter(function(d){return seen.indexOf(d.id)<0}).forEach(devAlert)}
+function devAlert(d){var c=$('devalert');if(!c){c=document.createElement('div');c.id='devalert';c.style.cssText='position:fixed;left:8px;right:8px;top:8px;z-index:95;display:flex;flex-direction:column;gap:8px;max-width:520px;margin:0 auto';document.body.appendChild(c)}
+ var e=document.createElement('div');e.style.cssText='background:#111;color:#fff;border:2px solid #eab308;border-radius:14px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.5);font-size:14px';
+ var t=document.createElement('div');t.style.cssText='font-weight:700;margin-bottom:4px';t.textContent='⚠ வேறொரு டிவைஸில் லாகின் ஆகியுள்ளது';var s=document.createElement('div');s.style.cssText='opacity:.85;margin-bottom:8px';s.textContent=(d.name||'Device')+' · ID '+d.id+' · '+new Date().toLocaleTimeString();
+ var row=document.createElement('div');row.style.cssText='display:flex;gap:8px';var ok=document.createElement('button'),ko=document.createElement('button');ok.textContent='நான்தான் (OK)';ko.textContent='Log out that device';
+ ok.style.cssText='flex:1;border:0;border-radius:10px;padding:10px;background:#fff;color:#111;font-weight:600';ko.style.cssText='flex:1;border:0;border-radius:10px;padding:10px;background:#e5484d;color:#fff;font-weight:600';
+ ok.onclick=function(){e.remove()};ko.onclick=async function(){ko.disabled=true;try{await devKick(d.id);e.remove();if(admOpen)admin()}catch(x){ko.textContent='Error, try again';ko.disabled=false}};
+ row.appendChild(ok);row.appendChild(ko);e.appendChild(t);e.appendChild(s);e.appendChild(row);c.appendChild(e);try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(x){}}
+async function devLoad(){try{DVL=await devApi('?select=*&order=last_seen.desc');DVM=''}catch(e){DVL=[];DVM='Device list error: '+e.message+' (Supabase-ல் admin_devices டேபிள் உருவாக்கினீர்களா?)'}}
+async function devKick(id){await devApi('?id=eq.'+encodeURIComponent(id),'PATCH',{revoked:true,logged_in:false})}
+async function devKickAll(){var tok=await token();try{await fetch(SB_URL+'/auth/v1/logout?scope=others',{method:'POST',headers:hd(tok)})}catch(e){}await devApi('?id=neq.'+encodeURIComponent(DEV),'PATCH',{revoked:true,logged_in:false})}
+async function myLogout(){try{if(SBS)await devApi('?id=eq.'+encodeURIComponent(DEV),'PATCH',{logged_in:false,last_seen:new Date().toISOString()})}catch(e){}logout();DVL=[];admin()}
+async function drawDev(dv){dv.innerHTML='<div class="lbl2">Loading devices...</div>';await devLoad();dv.innerHTML='';
+ var live=DVL.filter(function(d){return d.logged_in&&!d.revoked}),h=ael('<div class="row" style="justify-content:space-between"><b>Logged-in devices ('+live.length+')</b><button class="mini">Refresh</button></div>');h.lastChild.onclick=function(){drawDev(dv)};dv.appendChild(h);
+ if(DVM){var er=ael('<div class="lbl2" style="color:var(--red);margin-top:6px"></div>');er.textContent=DVM;dv.appendChild(er)}
+ DVL.forEach(function(d){var me=d.id===DEV,lv=d.logged_in&&!d.revoked,age=Date.now()-new Date(d.last_seen).getTime(),on=lv&&age<180000,
+  st=!lv?'Logged out':(on?'Online now':'Last seen '+new Date(d.last_seen).toLocaleString()),
+  r=ael('<div class="row" style="gap:8px;padding:8px 0;border-top:.5px solid var(--bd);'+(lv?'':'opacity:.55')+'"><div style="flex:1;min-width:0"><b></b><div class="lbl2" style="margin:0"></div></div></div>'),b=r.querySelector('b'),s=r.querySelector('.lbl2');
+  b.textContent=d.name||'Device';if(me)b.appendChild(ael('<span class="chip on" style="padding:1px 8px;font-size:11px;margin-left:6px;display:inline-flex">This device</span>'));
+  s.textContent=st+' · ID '+d.id;if(on)s.style.color='#2e9e4f';
+  if(!me&&lv){var x=ael('<button class="mini">Log out</button>');x.onclick=function(){askDel('Log out "'+(d.name||'Device')+'"?',async function(){try{await devKick(d.id)}catch(e){DVM='Error: '+e.message}drawDev(dv)},'Yes, log out')};r.appendChild(x)}
+  else if(!me&&!lv){var y=ael('<button class="mini">Remove</button>');y.onclick=async function(){try{await devApi('?id=eq.'+encodeURIComponent(d.id),'DELETE')}catch(e){DVM='Error: '+e.message}drawDev(dv)};r.appendChild(y)}
+  dv.appendChild(r)});
+ if(!DVL.length&&!DVM)dv.appendChild(ael('<div class="lbl2">No devices yet.</div>'));
+ if(live.filter(function(d){return d.id!==DEV}).length){var ka=ael('<button class="btn" style="width:100%;margin-top:10px;color:#e5484d">Log out all other devices</button>');ka.onclick=function(){askDel('Log out every other device?',async function(){try{await devKickAll()}catch(e){DVM='Error: '+e.message}drawDev(dv)},'Yes, log out all')};dv.appendChild(ka)}}
+setTimeout(devBeat,1500);setInterval(function(){if(!document.hidden)devBeat()},30000);document.addEventListener('visibilitychange',function(){if(!document.hidden)devBeat()});
 async function refreshAll(){var n=await cloudLoad(),ok=await pjPull();if(ST.scr==='home')scrHome();else if(ST.scr==='proj')scrProj();else if(ST.scr==='rf')scrRF();return n!==-1||ok}
 (function(){var y0=null,dy=0,busy=false,el=null,lastV=0;
  function ind(){if(!el){el=document.createElement('div');el.id='ptr';document.body.appendChild(el)}return el}
@@ -1391,8 +1426,8 @@ function tCard(t,inSheet){var c=ael('<div class="card" style="margin:0 0 8px"></
 function adminBody(){
  var a=$('adm');a.innerHTML='';
  a.appendChild(ael('<div class="row" style="justify-content:space-between"><div style="font-size:18px;font-weight:600">Showroom settings</div><button class="mini" id="adx">Close</button></div>'));$('adx').onclick=function(){toggleAdm(false)};
- a.appendChild(ael('<div class="row" style="margin:6px 0"><span id="cmsg" style="font-size:12px;color:var(--tx2);flex:1"></span><button class="mini" id="lo">Log out</button></div>'));$('lo').onclick=function(){logout();admin();};cloudMsg=cloudMsg||'Logged in. Changes save to the cloud.';cmsg();
- a.appendChild(ael('<div class="row" style="justify-content:flex-end;margin:0 0 6px"><button class="mini" id="bnb" aria-label="Recycle bin" style="display:flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span>'+BIN.length+'</span></button></div>'));$('bnb').onclick=openBin;
+ a.appendChild(ael('<div class="row" style="margin:6px 0"><span id="cmsg" style="font-size:12px;color:var(--tx2);flex:1"></span><button class="mini" id="lo">Log out</button></div>'));$('lo').onclick=myLogout;cloudMsg=cloudMsg||'Logged in. Changes save to the cloud.';cmsg();
+ a.appendChild(ael('<div class="row" style="justify-content:flex-end;margin:0 0 6px"><button class="mini" id="bnb" aria-label="Recycle bin" style="display:flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span>'+BIN.length+'</span></button></div>'));$('bnb').onclick=openBin;var dvc=ael('<div class="card" style="margin:10px 0"></div>');a.appendChild(dvc);drawDev(dvc);
  a.appendChild(ael('<div class="lbl" style="margin-top:0">Showroom name</div>'));var sn=ael('<input style="width:100%">');sn.value=CFG.shop||'';sn.oninput=function(){CFG.shop=this.value;save()};a.appendChild(sn);
  a.appendChild(ael('<div class="lbl">Showroom phone (shown to customers)</div>'));var ph=ael('<input inputmode="tel" style="width:100%">');ph.value=CFG.phone||'';ph.oninput=function(){CFG.phone=this.value;save()};a.appendChild(ph);
  var add=ael('<button class="btn" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:170px;height:170px;margin:16px auto;border-radius:18px;border-color:var(--gold)"><span style="font-size:44px;line-height:1">+</span><span style="font-size:14px">Add tile from photo</span></button>');add.onclick=function(){toggleAdm(false);AT=null;openAdd()};a.appendChild(add);
@@ -1421,7 +1456,7 @@ function admin(){
   a.appendChild(ael('<div style="font-size:13px;color:var(--tx2);margin:6px 0 10px">டைல், விலை மாற்ற கடை உரிமையாளர் மட்டும் உள்நுழையலாம்.</div>'));
   var em=ael('<input type="email" autocomplete="username" placeholder="Email" style="width:100%;margin-bottom:8px">'),pw=ael('<input type="password" autocomplete="current-password" placeholder="Password" style="width:100%;margin-bottom:8px">'),bt=ael('<button class="btn pri" style="width:100%">Log in</button>'),ms=ael('<div style="font-size:13px;color:var(--tx2);margin-top:8px;min-height:18px"></div>');
   [em,pw,bt,ms].forEach(function(e){a.appendChild(e)});
-  bt.onclick=async function(){ms.textContent='Logging in...';try{await sbLogin(em.value.trim(),pw.value);var n=await cloudLoad();if(n===0)await syncUp();await pjPull();pjSched();admin()}catch(e){ms.textContent=e.message||'Login failed'}};return}
+  bt.onclick=async function(){ms.textContent='Logging in...';try{await sbLogin(em.value.trim(),pw.value);var n=await cloudLoad();if(n===0)await syncUp();await pjPull();pjSched();await devReg();await devSeenReset();admin()}catch(e){ms.textContent=e.message||'Login failed'}};return}
  adminBody()}
 /* ---------- objects library (sanitary ware, taps, doors...) ---------- */
 var OW='#f5f5f3',OG='#b9bec4',OK='#2b2b2b',OT='#8d5a35',OL='#bcdde6',OB='#7a5c3a';
